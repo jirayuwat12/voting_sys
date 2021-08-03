@@ -53,7 +53,7 @@ async def open_vote(ctx):
     }
     for key in channel_ids:
         embed = discord.Embed(title = "โปรดอ่าน")
-        embed.add_field(name = "การโหวต",value="ใช้คำสั่ง {0}govote".format('.'))
+        embed.add_field(name = "การโหวต",value="ใช้คำสั่ง {0}govote และโหวตในDMของBot".format('.'))
         ch = bot.get_channel(channel_ids[key])
         await ch.send(embed = embed)
         # data = gotdata[key].val()
@@ -71,6 +71,9 @@ async def govote(ctx):
 @bot.command()
 @commands.dm_only()
 async def vote(ctx,passcode,logo_id):
+    if firebase.child('can_vote').get().val() == False:
+        await ctx.author.send('ไม่สามารถโหวตได้')
+        return
     id_voted = False
     for x in firebase.child('voted_user').get().each():
         if x.key() == str(ctx.author.id):
@@ -114,7 +117,7 @@ async def vote(ctx,passcode,logo_id):
                     firebase.update(data)
                     await ctx.author.send('ได้โหวต {0} ด้วย passcode {1} สำเร็จ'.format(logo_id,passcode))
         else:
-            await ctx.author.send('passcode นี้ไม่สามารถโหวดชั้นปีนี้ได้')
+            await ctx.author.send('passcode นี้ไม่สามารถโหวตชั้นปีนี้ได้')
     else:
         await ctx.author.send('ไม่มี logo id นี้')
 
@@ -137,6 +140,13 @@ async def continuevote(ctx):
 async def pausevote(ctx):
     firebase.child('can_vote').set(False)
     await ctx.channel.send("can't vote now.")
+
+@bot.command()
+async def statusvote(ctx):
+    if(firebase.child('can_vote').get().val()):
+        await ctx.channel.send('ระบบโหวตเปิดอยู่')
+    else:
+        await ctx.channel.send('ระบบโหวตปิดอยู่')
 
 #show how much vote so far
 @bot.command()
