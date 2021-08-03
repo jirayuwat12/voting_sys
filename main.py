@@ -89,33 +89,41 @@ async def vote(ctx,passcode,logo_id):
             passcodelist.append(x.val())
         #can vote this year
         if str(passcode) in str(passcodelist):
+            temp = firebase.child('voted_user').get()
+            boo = True
+            for x in temp.each():
+                if x.val()['passcode']== passcode and x.key() != str(ctx.author.id):
+                    boo = False
             #never vote before
-            if firebase.child('voted_user').child(ctx.author.id).get().val() == None:
-                data = {
-                    'voted_user/{0}'.format(ctx.author.id) : {
-                        "logo_id" : logo_id,
-                        "passcode": passcode
-                    },
-                    "sumary_vote/{0}".format(logo_id) : int (firebase.child('sumary_vote').child(logo_id).get().val() )+1,
-                    "sumary_vote/all_vote" : int(firebase.child('sumary_vote').child('all_vote').get().val() )+ 1
-                }
-                firebase.update(data)
-                await ctx.author.send('ได้โหวต {0} ด้วย passcode {1} สำเร็จ'.format(logo_id,passcode))
-            #voted user
-            else:
-                #wrong passcode
-                if firebase.child('voted_user').child(ctx.author.id).get().val()['passcode'] != str(passcode):
-                    await ctx.author.send('passcode ผิด')
-                #correct passcoed
-                else:
-                    voted_logo_id = firebase.child('voted_user').child(ctx.author.id).child('logo_id').get().val() 
+            if boo:
+                if firebase.child('voted_user').child(ctx.author.id).get().val() == None:
                     data = {
-                        'voted_user/{0}/logo_id'.format(ctx.author.id) : logo_id,
+                        'voted_user/{0}'.format(ctx.author.id) : {
+                            "logo_id" : logo_id,
+                            "passcode": passcode
+                        },
                         "sumary_vote/{0}".format(logo_id) : int (firebase.child('sumary_vote').child(logo_id).get().val() )+1,
-                        "sumary_vote/{0}".format(voted_logo_id) : int (firebase.child('sumary_vote').child(voted_logo_id).get().val())-1,
+                        "sumary_vote/all_vote" : int(firebase.child('sumary_vote').child('all_vote').get().val() )+ 1
                     }
                     firebase.update(data)
                     await ctx.author.send('ได้โหวต {0} ด้วย passcode {1} สำเร็จ'.format(logo_id,passcode))
+                #voted user
+                else:
+                    #wrong passcode
+                    if firebase.child('voted_user').child(ctx.author.id).get().val()['passcode'] != str(passcode) or firebase.child('voted_user').child(ctx.author.id).get().val()['logo_id'] == logo_id :
+                        await ctx.author.send('passcode ผิด หรือ โหวตซ้ำ')
+                    #correct passcode
+                    else:
+                        voted_logo_id = firebase.child('voted_user').child(ctx.author.id).child('logo_id').get().val() 
+                        data = {
+                            'voted_user/{0}/logo_id'.format(ctx.author.id) : logo_id,
+                            "sumary_vote/{0}".format(logo_id) : int (firebase.child('sumary_vote').child(logo_id).get().val() )+1,
+                            "sumary_vote/{0}".format(voted_logo_id) : int (firebase.child('sumary_vote').child(voted_logo_id).get().val())-1,
+                        }
+                        firebase.update(data)
+                        await ctx.author.send('ได้โหวต {0} ด้วย passcode {1} สำเร็จ'.format(logo_id,passcode))
+            else:
+                await ctx.author.send('passcode นี้ถูกใช้แล้ว')
         else:
             await ctx.author.send('passcode นี้ไม่สามารถโหวตชั้นปีนี้ได้')
     else:
