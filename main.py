@@ -68,78 +68,63 @@ async def govote(ctx):
     await ctx.author.send('ใช้คำสั่งได้แค่ในห้องนี้เท่านั้น')    
     await ctx.author.send("command>> {0}vote passcode logo-id ex-> {0}vote 1234567890 123".format('.'))
 
-#check passcode and logo
-def checkpasscode(passcode,logo_id):
-    #have that logoid?
-    logo_id = str(logo_id)
-    passcode  = str(passcode)
-    if not logo_id in logo_id_list:
-        return False
-    #is passcode match logoid? ----- same logic
-    #is that passcode valid?   --/
-    dt = firebase.child('passcode').get().val()
-    if logo_id[:2] == '60' and not passcode in str(dt['y60']):
-        return False
-    elif logo_id[:2] == '61' and not passcode in str(dt['y61']):
-        return False
-    elif logo_id[:2] == '62' and not passcode in str(dt['y62']):
-        return False
-    elif logo_id[:2] == '63' and not passcode in str(dt['y63']):
-        return False
-    elif logo_id[:2] == '64' and not passcode in str(dt['y64']):
-        return False
-    elif logo_id[:2] == '00' and not passcode in str(dt['ygraduate']):
-        return False
-    return True
-def is_passcode_vote(passcode,logo_id):
-    dt = firebase.child('voted_user').get()
-    for x in dt.each():
-        if str(x.key()) == passcode and str(logo_id) != str(x.val()):
-            return True
-    return False
-#vote command 
 @bot.command()
 @commands.dm_only()
 async def vote(ctx,passcode,logo_id):
-    if firebase.child('can_vote').get().val():
-        if(checkpasscode(passcode,logo_id)):
-            if is_passcode_vote(passcode,logo_id):
-                voted_logo_id = firebase.child('voted_user').child(passcode).get().val()
+    id_voted = False
+    for x in firebase.child('voted_user').get().each():
+        if x.key() == str(ctx.author.id):
+            id_voted = True
+            break
+    #have this logo id
+    if str(logo_id) in str(logo_id_list):
+        year = 'y' + logo_id[:2]
+        if year == 'y00':
+            year = 'ygraduate'
+        passcodelist = []
+        for x in firebase.child('passcode').child(year).get().each():
+            passcodelist.append(x.val())
+        #can vote this year
+        if str(passcode) in str(passcodelist):
+            #never vote before
+            if firebase.child('voted_user').child(ctx.author.id).get().val() == None:
                 data = {
-                    "sumary_vote/{0}".format(logo_id): 1 + int(firebase.child('sumary_vote').child(logo_id).get().val()),
-                    "sumary_vote/{0}".format(voted_logo_id): int(firebase.child('sumary_vote').child(voted_logo_id).get().val()) - 1,
-                    "voted_user/{0}".format(passcode):str(logo_id)
+                    'voted_user/{0}'.format(ctx.author.id) : {
+                        "logo_id" : logo_id,
+                        "passcode": passcode
+                    },
+                    "sumary_vote/{0}".format(logo_id) : int (firebase.child('sumary_vote').child(logo_id).get().val() )+1,
+                    "sumary_vote/all_vote" : int(firebase.child('sumary_vote').child('all_vote').get().val() )+ 1
                 }
                 firebase.update(data)
-                await ctx.author.send("คุณได้โหวด {0} ด้วยpasscode {1} เรียบร้อย!!!".format(logo_id,passcode))
-            elif str(logo_id) != firebase.child('voted_user').child(passcode).get().val():
-                data = {
-                    "sumary_vote/{0}".format(logo_id): 1 + firebase.child('sumary_vote').child(logo_id).get().val(),
-                    "sumary_vote/all_vote": 1 + firebase.child('sumary_vote').child('all_vote').get().val(),
-                    "voted_user/{0}".format(passcode):str(logo_id)
-                }
-                firebase.update(data)
-                await ctx.author.send("คุณได้โหวด {0} ด้วยpasscode {1} เรียบร้อย!!!".format(logo_id,passcode))
+                await ctx.author.send('ได้โหวต {0} ด้วย passcode {1} สำเร็จ'.format(logo_id,passcode))
+            #voted user
             else:
-                embed = discord.Embed(title = 'ไม่สามารถโหวดได้ เพราะ',color = 0xFF0032)
-                embed.add_field(name = '1.ไม่สามารถโหวดข้ามปีได้',value='----------------------',inline=False)
-                embed.add_field(name = '2.passcode ไม่ถูกต้อง',value='----------------------',inline=False)
-                embed.add_field(name = '3.เคยโหวตlogoนี้ไปแล้ว',value='----------------------',inline=False)
-                embed.add_field(name = '4.logo id ไม่ถูกต้อง',value='----------------------',inline=False)
-                embed.add_field(name = 'กรุณาติดต่อ อ.นัทที หรือ อ.เจษฏา',value='----------------------',inline=False)
-                
-                await ctx.author.send(embed = embed)
+                #wrong passcode
+                if firebase.child('voted_user').child(ctx.author.id).get().val()['passcode'] != str(passcode):
+                    await ctx.author.send('passcode ผิด')
+                #correct passcoed
+                else:
+                    voted_logo_id = firebase.child('voted_user').child(ctx.author.id).child('logo_id').get().val() 
+                    data = {
+                        'voted_user/{0}/logo_id'.format(ctx.author.id) : logo_id,
+                        "sumary_vote/{0}".format(logo_id) : int (firebase.child('sumary_vote').child(logo_id).get().val() )+1,
+                        "sumary_vote/{0}".format(voted_logo_id) : int (firebase.child('sumary_vote').child(voted_logo_id).get().val())-1,
+                    }
+                    firebase.update(data)
+                    await ctx.author.send('ได้โหวต {0} ด้วย passcode {1} สำเร็จ'.format(logo_id,passcode))
         else:
-            embed = discord.Embed(title = 'ไม่สามารถโหวดได้ เพราะ',color = 0xFF0032)
-            embed.add_field(name = '1.ไม่สามารถโหวดข้ามปีได้',value='----------------------',inline=False)
-            embed.add_field(name = '2.passcode ไม่ถูกต้อง',value='----------------------',inline=False)
-            embed.add_field(name = '3.เคยโหวตlogoนี้ไปแล้ว',value='----------------------',inline=False)
-            embed.add_field(name = '4.logo id ไม่ถูกต้อง',value='----------------------',inline=False)
-            embed.add_field(name = 'กรุณาติดต่อ อ.นัทที หรือ อ.เจษฏา',value='----------------------',inline=False)
-            
-            await ctx.author.send(embed = embed)
+            await ctx.author.send('passcode นี้ไม่สามารถโหวดชั้นปีนี้ได้')
     else:
-        await ctx.channel.send('Can\'t vote now')
+        await ctx.author.send('ไม่มี logo id นี้')
+
+@bot.command()
+@commands.dm_only()
+async def myvote(ctx):
+    if( firebase.child('voted_user').child(ctx.author.id).get().val() == None ):
+        await ctx.author.send('คุณยังไม่ได้โหวต')
+    else:
+        await ctx.author.send("passcode ของคุณคือ {0} และได้โหวต {1}".format(firebase.child('voted_user').child(ctx.author.id).get().val()['passcode'],firebase.child('voted_user').child(ctx.author.id).get().val()['logo_id']))
 
 #make other can vote
 @bot.command()
@@ -159,35 +144,10 @@ async def all_votes(ctx):
     all_vote = firebase.child('sumary_vote').get().val()['all_vote']
     await ctx.channel.send("โหวตไป {0} ครั้งแล้ว".format(all_vote))
 
-#return did user vote
-@bot.command()
-async def didivote(ctx,passcode):
-    i = firebase.child('voted_user').get()
-    for x in i.each():
-        if(int(passcode) == int(x.key())):
-            await ctx.author.send("{0} has been voted for {1}".format(passcode,x.val()))
-            break
-    else:
-        await ctx.author.send("{0} hasn't vote yet".format(passcode))
-
 @bot.command()
 async def backup(ctx):
     bu.backup()
     await ctx.channel.send('success')
-
-#delete what that passcode vote
-@bot.command()
-async def devote(ctx,passcode):
-    temp = firebase.child('voted_user').child(str(passcode)).get().val()
-    if temp == None:
-        await ctx.channel.send('{0} didn\'t vote yet'.format(passcode))
-    else:
-        temp_num_vote = firebase.child('sumary_vote').child(temp).get().val()
-        temp_all_vote = firebase.child('sumary_vote').child('all_vote').get().val()
-        firebase.child('sumary_vote').child(temp).set(int(temp_num_vote)-1)
-        firebase.child('sumary_vote').child('all_vote').set(int(temp_all_vote)-1)
-        firebase.child('voted_user').child(passcode).remove()
-        await ctx.channel.send('deleted')
 
 #delete govote msg command
 @bot.event
