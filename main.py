@@ -66,7 +66,8 @@ async def open_vote(ctx):
 @bot.command()
 async def govote(ctx):
     await ctx.author.send('ใช้คำสั่งได้แค่ในห้องนี้เท่านั้น')    
-    await ctx.author.send("command>> {0}vote passcode logo-id ex-> {0}vote 1234567890 123".format('.'))
+    await ctx.author.send("คำสั่งในการโหวต: {0}vote passcode logo-id เช่น: {0}vote 1234567890 123".format('.'))
+    await ctx.author.send("หากโหวตเสร็จสิ้นจะมีข้อความยืนยัน หากไม่มีโปรดติดต่อผู้เกี่ยวข้อง")
 
 @bot.command()
 @commands.dm_only()
